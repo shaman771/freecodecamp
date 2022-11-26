@@ -24,13 +24,16 @@ app.use(session({
   cookie: { secure: false }
 }));
 
+app.use(passport.initialize());
+app.use(passport.session());
+
 fccTesting(app); //For FCC testing purposes
 app.use('/public', express.static(process.cwd() + '/public'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 myDB(async client => {
-  const myDataBase = await client.db('fcc').collection('users');
+  const myDataBase = await client.db('test').collection('users');
 
   app.route('/').get((req, res) => {
     res.render('index', {
@@ -40,7 +43,7 @@ myDB(async client => {
     });
   });
 
-  passport.use(new LocalStrategy((username, password, done) => {
+  passport.use('local', new LocalStrategy((username, password, done) => {
     myDataBase.findOne({ username: username }, (err, user) => {
       console.log(`User ${username} attempted to log in.`);
       if (err) return done(err);
@@ -65,13 +68,20 @@ myDB(async client => {
     .post(
       passport.authenticate('local', { failureRedirect: '/' }),
       (req, res, next) => {
-        res.render('profile', {});
+        res.redirect('profile');
       });
 
   app
     .route('/profile')
-    .get(ensureAuthenticated, (req,res) => {
-      res.render('profile');
+    .get(ensureAuthenticated, (req, res) => {
+      res.render('profile', { username: req.user.username });
+    });
+
+  app.route('/logout')
+    .get((req, res) => {
+      req.logout({}, () => {
+        res.redirect('/');
+      });
     });
 
 }).catch(e => {
